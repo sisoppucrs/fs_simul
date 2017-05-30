@@ -1,5 +1,6 @@
 # Trabalho 2 Sistemas Operacionais PUCRS
 
+
 1. Objetivos
 
     - Implementação de um sistema de arquivos simplificado, baseado em FAT.
@@ -7,6 +8,7 @@
     - Reforço no aprendizado sobre implementação de sistema de arquivos.
 
     - Aprendizado de manipulação de arquivos e estruturas em dispositivo de armazenamento secundário.
+
 
 2. Descrição do sistema de arquivos
 
