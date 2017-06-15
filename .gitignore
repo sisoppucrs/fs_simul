@@ -2,3 +2,5 @@
 simul.fs
 simulfs
 log.dat
+*.png
+*.gnuplot

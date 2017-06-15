@@ -28,28 +28,83 @@ int print_sectors() {
 	return 0;
 
 }
+
+void debug_sector(int pos) {
+	if (!pos) {
+		struct root_table_directory root_dir;
+		ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+		printf("free_sectors_list: %d\n", root_dir.free_sectors_list);
+		printf("entries:\n");
+			printf("┌───┬──────────────────────┬─────────┬───────┐\n");
+			printf("│ T │ Nome                 │ Tamanho │ Setor │\n");
+			printf("├───┼──────────────────────┼─────────┼───────┤\n");
+		for (int i = 0; i < 15; i++) {
+			struct file_dir_entry *entrada = &root_dir.entries[i];
+			printf("│ %c │ %.20s%*s│ %4d kB │  %.4x │\n", (entrada->dir? 'd' : 'f'), entrada->name, (int) (21 - strlen(entrada->name)), " ", entrada->size_bytes/1024, entrada->sector_start);
+
+		}
+			printf("└───┴──────────────────────┴─────────┴───────┘\n");
+		printf("\n");
+
+	} else {
+		unsigned char buffer[16][SECTOR_SIZE/16];
+		ds_read_sector(pos, (void*)&buffer, SECTOR_SIZE);
+		for (int j = 0; j < 16; j++) {
+			for (int i = 0; i < SECTOR_SIZE/16; i++)
+	   			printf("%.2x ", buffer[j][i]);
+			printf("\n");
+		}
+	}
+
+}
 */
 
-struct file_dir_entry* get_file_dir_entry(struct root_table_directory* root_dir, char* path, int new) {
+struct file_dir_entry* get_file_dir_entry(struct root_table_directory* root_dir, char* path, int new, struct table_directory* td, int* sector_pointer) {
+	*sector_pointer = 0;
+	if (!strlen(path) || !strcmp(path, "/"))
+		return 0;
 	struct file_dir_entry *entrada;
-	int i;
-	for (i = 0; i < 15; i++)
-		if (root_dir->entries[i].sector_start) {
-			entrada = &root_dir->entries[i];
+	struct file_dir_entry *entries = root_dir->entries;
+	int entries_length = 15;
+	char *pch = strtok(path, "/");
+	char *next_pch = strtok(NULL, "/");
+
+look:for (int i = 0; i < entries_length; i++) {
+		entrada = &entries[i];
+		if (entrada->sector_start) {
 			entrada->name[20] = '\0';
-			if (!strcmp(entrada->name, path)) {
-				if (new) {
-					printf("Arquivo %s já existe!\n", path);
-					return 0;
+			if (!strcmp(entrada->name, pch)) {
+				if (next_pch == NULL) {
+					if (new) {
+						printf("Arquivo '%s' já existe!\n", pch);
+						return 0;
+					} else
+						return entrada;
 				} else
-					return entrada;
+					if (entrada->dir) {
+						*sector_pointer = entrada->sector_start;
+						pch = next_pch;
+						next_pch = strtok(NULL, "/");
+						ds_read_sector(*sector_pointer, (void*)td, SECTOR_SIZE);
+						entries = td->entries;
+						entries_length = 16;
+						goto look;
+					} else {
+						printf("'%s' não é um diretório!\n", pch);
+						return 0;
+					}
 			}
 		} else
 			if (new) {
-				entrada = &root_dir->entries[i];
-				strcpy(entrada->name, path);
-				return entrada;
+				if (next_pch == NULL) {
+					strcpy(entrada->name, pch);
+					return entrada;
+				} else {
+					printf("Pasta '%s' não encontrada!\n", pch);
+					return 0;
+				}
 			}
+}
 	if (new)
 		printf("Não há mais entradas disponíveis!\n");
 	else
@@ -130,11 +185,13 @@ int fs_create(char* input_file, char* simul_file){
 	}
 
 	if (size > free_space) {
-		printf("Não há expaço suficiente disponível para o arquivo!\n");
+		printf("Não há espaço suficiente disponível para o arquivo!\n");
 		return 1;
 	}
 
-	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, simul_file, 1);
+	struct table_directory td;
+	int td_sector;
+	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, simul_file, 1, &td, &td_sector);
 	if (!entrada)
 		return 1;
 
@@ -169,6 +226,9 @@ int fs_create(char* input_file, char* simul_file){
 	root_dir.free_sectors_list = sector_pointer;
 	
 	ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
+	
+	if (td_sector)
+		ds_write_sector(td_sector, (void*)&td, SECTOR_SIZE);
 
 	//print_sectors();
 
@@ -212,7 +272,9 @@ int fs_del(char* simul_file){
 	struct root_table_directory root_dir;
 	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
-	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, simul_file, 0);
+	struct table_directory td;
+	int td_sector;
+	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, simul_file, 0, &td, &td_sector);
 	if (!entrada)
 		return 1;
 
@@ -241,6 +303,9 @@ int fs_del(char* simul_file){
 	strcpy(entrada->name, "");
 
 	ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
+	
+	if (td_sector)
+		ds_write_sector(td_sector, (void*)&td, SECTOR_SIZE);
 
 	ds_stop();
 
@@ -258,19 +323,36 @@ int fs_ls(char *dir_path){
 		return ret;
 	}
 	
+	int td_sector = 0;
 	struct root_table_directory root_dir;
+	struct table_directory td;
 	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
+	struct file_dir_entry *entries, *entrada;
+	int size;
+
+	if (dir_path == NULL || !strlen(dir_path) || !strcmp(dir_path, "/")) {
+		entries = root_dir.entries;
+		size = 15;
+	} else {
+		entrada = get_file_dir_entry(&root_dir, dir_path, 0, &td, &td_sector);
+		if (!entrada)
+			return 1;
+
+		ds_read_sector(entrada->sector_start, (void*)&td, SECTOR_SIZE);
+		entries = td.entries;
+		size = 16;
+	}
 
 	int file_count = 0;
 	int total_size = 0;
 
-	struct file_dir_entry *entrada;
 	printf("┌───┬──────────────────────┬─────────┐\n");
 	printf("│ T │ Nome                 │ Tamanho │\n");
 	printf("├───┼──────────────────────┼─────────┤\n");
-	for (int i = 0; i < 15; i++)
-		if (root_dir.entries[i].sector_start) {
-			entrada = &root_dir.entries[i];
+	for (int i = 0; i < size; i++)
+		if (entries[i].sector_start) {
+			entrada = &entries[i];
 			file_count++;
 			total_size += entrada->size_bytes;
 			printf("│ %c │ %.20s%*s│ %4d kB │\n", (entrada->dir? 'd' : 'f'), entrada->name, (int) (21 - strlen(entrada->name)), " ", entrada->size_bytes/1024);
@@ -301,7 +383,9 @@ int fs_mkdir(char* directory_path){
 
 	int sector_pointer = root_dir.free_sectors_list;
 
-	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, directory_path, 1);
+	struct table_directory td;
+	int td_sector;
+	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, directory_path, 1, &td, &td_sector);
 	if (!entrada)
 		return 1;
 
