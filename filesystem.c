@@ -410,6 +410,9 @@ int fs_mkdir(char* directory_path){
 	
 	ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
+	if(td_sector)
+		ds_write_sector(td_sector,(void*)&td,SECTOR_SIZE);
+
 	ds_stop();
 	
 	return 0;
