@@ -97,6 +97,10 @@ look:for (int i = 0; i < entries_length; i++) {
 		} else
 			if (new) {
 				if (next_pch == NULL) {
+					if(strlen(pch) > 20) {
+						printf("Arquivo '%s' muito grande!\n", pch);
+						return 0;
+					}	
 					strcpy(entrada->name, pch);
 					return entrada;
 				} else {
