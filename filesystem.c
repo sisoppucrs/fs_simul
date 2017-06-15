@@ -30,6 +30,34 @@ int print_sectors() {
 }
 */
 
+struct file_dir_entry* get_file_dir_entry(struct root_table_directory* root_dir, char* path, int new) {
+	struct file_dir_entry *entrada;
+	int i;
+	for (i = 0; i < 15; i++)
+		if (root_dir->entries[i].sector_start) {
+			entrada = &root_dir->entries[i];
+			entrada->name[20] = '\0';
+			if (!strcmp(entrada->name, path)) {
+				if (new) {
+					printf("Arquivo %s já existe!\n", path);
+					return 0;
+				} else
+					return entrada;
+			}
+		} else
+			if (new) {
+				entrada = &root_dir->entries[i];
+				strcpy(entrada->name, path);
+				return entrada;
+			}
+	if (new)
+		printf("Não há mais entradas disponíveis!\n");
+	else
+		printf("Arquivo não encontrado!\n");
+
+	return 0;
+}
+
 int fs_format(){
 	int ret, i;
 	struct root_table_directory root_dir;
@@ -106,21 +134,11 @@ int fs_create(char* input_file, char* simul_file){
 		return 1;
 	}
 
-	//PROCURANDO ENTRADAS DISPONIVEIS NO ROOT;
-	int i;
-	for (i = 0; i < 15; i++)
-		if (!root_dir.entries[i].sector_start)
-			break;
-
-	if (i == 15) {
-		printf("Não há mais entradas disponíveis\n");
-		return 2;
-	}
-
-	struct file_dir_entry *entrada = &root_dir.entries[i];
+	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, simul_file, 1);
+	if (!entrada)
+		return 1;
 
 	entrada->dir = 0;
-	strcpy(entrada->name, simul_file);
 
 	entrada->size_bytes = size;
 	sector_pointer = root_dir.free_sectors_list;
@@ -194,52 +212,38 @@ int fs_del(char* simul_file){
 	struct root_table_directory root_dir;
 	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
-	struct file_dir_entry *entrada;
-	int i;
-	for (i = 0; i < 15; i++)
-		if (root_dir.entries[i].sector_start) {
-			entrada = &root_dir.entries[i];
-			entrada->name[20] = '\0';
-			if (!strcmp(entrada->name, simul_file)) {
-				int sector_pointer = entrada->sector_start;
-				int first_pointer = sector_pointer;
-				struct sector_data sector;
-				int size = entrada->size_bytes;
-				while(1) {
-					int sector_size = (size > SECTOR_SIZE - sizeof(int) ? SECTOR_SIZE - sizeof(int) : size);
-					char buffer[sector_size];
-					ds_read_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
-					memcpy(&sector, buffer, sector_size);
-					ds_write_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, simul_file, 0);
+	if (!entrada)
+		return 1;
 
-					size -= sector_size;
-					if (!size)
-						break;
+	int sector_pointer = entrada->sector_start;
+	int first_pointer = sector_pointer;
+	struct sector_data sector;
+	int size = entrada->size_bytes;
+	while(1) {
+		int sector_size = (size > SECTOR_SIZE - sizeof(int) ? SECTOR_SIZE - sizeof(int) : size);
+		char buffer[sector_size];
+		ds_read_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+		memcpy(&sector, buffer, sector_size);
+		ds_write_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
 
-					sector_pointer = sector.next_sector;
-				}
-				sector.next_sector = root_dir.free_sectors_list;
-				ds_write_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
-				root_dir.free_sectors_list = first_pointer;
+		size -= sector_size;
+		if (!size)
+			break;
 
-				entrada->sector_start = 0;
-				strcpy(entrada->name, "");
+		sector_pointer = sector.next_sector;
+	}
+	sector.next_sector = root_dir.free_sectors_list;
+	ds_write_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+	root_dir.free_sectors_list = first_pointer;
 
-				ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
+	entrada->sector_start = 0;
+	strcpy(entrada->name, "");
 
-				//print_sectors();
-	
-				ds_stop();
+	ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
-				return 0;
-			}
-		}
-
-	printf("Arquivo %s não encontrado!\n", simul_file);
-	return 1;
-	
 	ds_stop();
-	
+
 	return 0;
 }
 
@@ -297,21 +301,11 @@ int fs_mkdir(char* directory_path){
 
 	int sector_pointer = root_dir.free_sectors_list;
 
-	//PROCURANDO ENTRADAS DISPONIVEIS NO ROOT;
-	int i;
-	for (i = 0; i < 15; i++)
-		if (root_dir.entries[i].sector_start == 0)
-			break;
-
-	if (i == 15) {
-		printf("Não há mais entradas disponíveis\n");
-		return 2;
-	}
-
-	struct file_dir_entry *entrada = &root_dir.entries[i];
+	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, directory_path, 1);
+	if (!entrada)
+		return 1;
 
 	entrada->dir = 1;
-	strcpy(entrada->name, directory_path);
 
 	entrada->size_bytes = 0;
 	entrada->sector_start = root_dir.free_sectors_list;
