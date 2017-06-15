@@ -56,31 +56,43 @@ int fs_create(char* input_file, char* simul_file){
 		return ret;
 	}
 
-	printf("filename: %s\n", input_file);
-
 	FILE *fp = fopen(input_file, "r");
 
 	fseek(fp, 0L, SEEK_END);
 	int size = ftell(fp);
-	if (size < 0) {
-		printf("Arquivo grande demais para o sistema!\n");
+	if (size > NUMBER_OF_SECTORS * (SECTOR_SIZE - sizeof(int))) {
+		printf("Arquivo grande demais para o sistema de arquivos!\n");
 		return 1;
 	}
-
-	/* Seek to the beginning of the file */
-	fseek(fp, SEEK_SET, 0);
 
 	struct root_table_directory root_dir;
 	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
 	int sector_pointer = root_dir.free_sectors_list;
 	struct sector_data sector;
+	int free_space = 0;
+
+	while(sector_pointer) {
+		ds_read_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+		sector_pointer = sector.next_sector;
+		free_space += SECTOR_SIZE;
+	}
+
+	if (size > free_space) {
+		printf("Não há expaço suficiente disponível para o arquivo!\n");
+		return 1;
+	}
+
+	sector_pointer = root_dir.free_sectors_list;
+	int position_inside_file = 0;
 
 	while (size > 0) {
+		//printf("size: %d\n", size);
 
 		int sector_size = (size > SECTOR_SIZE - sizeof(int) ? SECTOR_SIZE - sizeof(int) : size);
 		char buffer[sector_size];
 
+		fseek(fp, SEEK_SET, position_inside_file);
 		fread(buffer, sector_size, 1, fp);
 
 		ds_read_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
@@ -92,8 +104,10 @@ int fs_create(char* input_file, char* simul_file){
 		sector_pointer = sector.next_sector;
 
 		size -= SECTOR_SIZE - sizeof(int);
+		position_inside_file += SECTOR_SIZE - sizeof(int);
 	}
 
+	//PROCURANDO ENTRADAS DISPONIVEIS NO ROOT;
 	int i;
 	for (i = 0; i < 15; i++)
 		if (root_dir.entries[i].sector_start == 0)

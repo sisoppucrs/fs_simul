@@ -29,7 +29,7 @@ int main(int argc, char **argv){
 	}
 	
 		if( !strcmp(argv[1], "-create"))
-			fs_create(argv[3], argv[2]);
+			fs_create(argv[2], argv[3]);
 	/* Create a map of used/free disk sectors. */
 	fs_free_map("log.dat");
 	
