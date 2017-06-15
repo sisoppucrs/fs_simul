@@ -27,13 +27,10 @@ int main(int argc, char **argv){
 			fs_create(argv[2], argv[3]);
 		else if( !strcmp(argv[1], "-ls"))
 			fs_ls(argv[2]);
-<<<<<<< HEAD
 		else if( !strcmp(argv[1], "-del"))
 			fs_del(argv[2]);
-=======
 		else if ( !strcmp(argv[1], "-mkdir"))
 			fs_mkdir(argv[2]);
->>>>>>> 388a5939215dca885a55ed0e88653853c303f7f0
 		
 	}
 

@@ -124,7 +124,6 @@ int fs_create(char* input_file, char* simul_file){
 
 	entrada->size_bytes = size;
 	sector_pointer = root_dir.free_sectors_list;
-	printf("target: %d\n", sector_pointer);
 	entrada->sector_start = sector_pointer;
 
 	int position_inside_file = 0;
@@ -150,7 +149,6 @@ int fs_create(char* input_file, char* simul_file){
 	}
 
 	root_dir.free_sectors_list = sector_pointer;
-	printf("0 -> %d\n", sector_pointer);
 	
 	ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
@@ -221,12 +219,11 @@ int fs_del(char* simul_file){
 					sector_pointer = sector.next_sector;
 				}
 				sector.next_sector = root_dir.free_sectors_list;
-				printf("%d -> %d\n", sector_pointer, sector.next_sector);
 				ds_write_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
 				root_dir.free_sectors_list = first_pointer;
-				printf("0 -> %d\n", first_pointer);
 
 				entrada->sector_start = 0;
+				strcpy(entrada->name, "");
 
 				ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
@@ -314,7 +311,7 @@ int fs_mkdir(char* directory_path){
 	struct file_dir_entry *entrada = &root_dir.entries[i];
 
 	entrada->dir = 1;
-	memcpy(entrada->name, directory_path, (int) strlen(directory_path));
+	strcpy(entrada->name, directory_path);
 
 	entrada->size_bytes = 0;
 	entrada->sector_start = root_dir.free_sectors_list;
