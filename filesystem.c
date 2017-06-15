@@ -9,6 +9,27 @@
  * @brief Format disk.
  * 
  */
+
+/*
+int print_sectors() {
+	struct root_table_directory root_dir;
+	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+	struct sector_data sector;
+	int sector_pointer = root_dir.free_sectors_list;
+	printf("0");
+	while(sector_pointer) {
+		printf(" -> %d", sector_pointer);
+		ds_read_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+		sector_pointer = sector.next_sector;
+		//if (sector_pointer > 10)
+			//break;
+	}
+	printf("\n");
+	return 0;
+
+}
+*/
+
 int fs_format(){
 	int ret, i;
 	struct root_table_directory root_dir;
@@ -56,6 +77,8 @@ int fs_create(char* input_file, char* simul_file){
 		return ret;
 	}
 
+	//print_sectors();
+
 	FILE *fp = fopen(input_file, "r");
 
 	fseek(fp, 0L, SEEK_END);
@@ -86,7 +109,7 @@ int fs_create(char* input_file, char* simul_file){
 	//PROCURANDO ENTRADAS DISPONIVEIS NO ROOT;
 	int i;
 	for (i = 0; i < 15; i++)
-		if (root_dir.entries[i].sector_start == 0)
+		if (!root_dir.entries[i].sector_start)
 			break;
 
 	if (i == 15) {
@@ -97,18 +120,16 @@ int fs_create(char* input_file, char* simul_file){
 	struct file_dir_entry *entrada = &root_dir.entries[i];
 
 	entrada->dir = 0;
-	memcpy(entrada->name, simul_file, (int) strlen(simul_file));
-	//printf("%s: %d\n", simul_file, (int) strlen(simul_file));
-	//return 0;
+	strcpy(entrada->name, simul_file);
 
 	entrada->size_bytes = size;
-	entrada->sector_start = root_dir.free_sectors_list;
-
 	sector_pointer = root_dir.free_sectors_list;
+	printf("target: %d\n", sector_pointer);
+	entrada->sector_start = sector_pointer;
+
 	int position_inside_file = 0;
 
 	while (size > 0) {
-		//printf("size: %d\n", size);
 
 		int sector_size = (size > SECTOR_SIZE - sizeof(int) ? SECTOR_SIZE - sizeof(int) : size);
 		char buffer[sector_size];
@@ -124,13 +145,16 @@ int fs_create(char* input_file, char* simul_file){
 
 		sector_pointer = sector.next_sector;
 
-		size -= SECTOR_SIZE - sizeof(int);
-		position_inside_file += SECTOR_SIZE - sizeof(int);
+		size -= sector_size;
+		position_inside_file += sector_size;
 	}
 
 	root_dir.free_sectors_list = sector_pointer;
+	printf("0 -> %d\n", sector_pointer);
 	
 	ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
+	//print_sectors();
 
 	ds_stop();
 	
@@ -166,8 +190,56 @@ int fs_del(char* simul_file){
 	if ( (ret = ds_init(FILENAME, SECTOR_SIZE, NUMBER_OF_SECTORS, 0)) != 0 ){
 		return ret;
 	}
+
+	//print_sectors();
 	
-	/* Write the code delete a file from the simulated filesystem. */
+	struct root_table_directory root_dir;
+	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
+	struct file_dir_entry *entrada;
+	int i;
+	for (i = 0; i < 15; i++)
+		if (root_dir.entries[i].sector_start) {
+			entrada = &root_dir.entries[i];
+			entrada->name[20] = '\0';
+			if (!strcmp(entrada->name, simul_file)) {
+				int sector_pointer = entrada->sector_start;
+				int first_pointer = sector_pointer;
+				struct sector_data sector;
+				int size = entrada->size_bytes;
+				while(1) {
+					int sector_size = (size > SECTOR_SIZE - sizeof(int) ? SECTOR_SIZE - sizeof(int) : size);
+					char buffer[sector_size];
+					ds_read_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+					memcpy(&sector, buffer, sector_size);
+					ds_write_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+
+					size -= sector_size;
+					if (!size)
+						break;
+
+					sector_pointer = sector.next_sector;
+				}
+				sector.next_sector = root_dir.free_sectors_list;
+				printf("%d -> %d\n", sector_pointer, sector.next_sector);
+				ds_write_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+				root_dir.free_sectors_list = first_pointer;
+				printf("0 -> %d\n", first_pointer);
+
+				entrada->sector_start = 0;
+
+				ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
+				//print_sectors();
+	
+				ds_stop();
+
+				return 0;
+			}
+		}
+
+	printf("Arquivo %s não encontrado!\n", simul_file);
+	return 1;
 	
 	ds_stop();
 	
@@ -196,11 +268,11 @@ int fs_ls(char *dir_path){
 	printf("│ T │ Nome                 │ Tamanho │\n");
 	printf("├───┼──────────────────────┼─────────┤\n");
 	for (int i = 0; i < 15; i++)
-		if (root_dir.entries[i].sector_start > 0) {
+		if (root_dir.entries[i].sector_start) {
 			entrada = &root_dir.entries[i];
 			file_count++;
 			total_size += entrada->size_bytes;
-			printf("│ %c │ %.20s%*s│ %4d kB │\n", (entrada->dir == 0 ? 'f' : 'd'), entrada->name, (int) (strlen(entrada->name) >= 20 ? 0 : 21 - strlen(entrada->name)), " ", entrada->size_bytes/1024);
+			printf("│ %c │ %.20s%*s│ %4d kB │\n", (entrada->dir? 'd' : 'f'), entrada->name, (int) (21 - strlen(entrada->name)), " ", entrada->size_bytes/1024);
 
 		}
 	printf("└───┴──────────────────────┴─────────┘\n");
@@ -322,4 +394,3 @@ int fs_free_map(char *log_f){
 	
 	return 0;
 }
-
