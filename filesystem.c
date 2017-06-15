@@ -83,6 +83,25 @@ int fs_create(char* input_file, char* simul_file){
 		return 1;
 	}
 
+	//PROCURANDO ENTRADAS DISPONIVEIS NO ROOT;
+	int i;
+	for (i = 0; i < 15; i++)
+		if (root_dir.entries[i].sector_start == 0)
+			break;
+
+	if (i == 15) {
+		printf("Não há mais entradas disponíveis\n");
+		return 2;
+	}
+
+	struct file_dir_entry *entrada = &root_dir.entries[i];
+
+	entrada->dir = 0;
+	memcpy(entrada->name, simul_file, strlen(simul_file));
+
+	entrada->size_bytes = size;
+	entrada->sector_start = root_dir.free_sectors_list;
+
 	sector_pointer = root_dir.free_sectors_list;
 	int position_inside_file = 0;
 
@@ -106,25 +125,6 @@ int fs_create(char* input_file, char* simul_file){
 		size -= SECTOR_SIZE - sizeof(int);
 		position_inside_file += SECTOR_SIZE - sizeof(int);
 	}
-
-	//PROCURANDO ENTRADAS DISPONIVEIS NO ROOT;
-	int i;
-	for (i = 0; i < 15; i++)
-		if (root_dir.entries[i].sector_start == 0)
-			break;
-
-	if (i == 15) {
-		printf("Não há mais entradas disponíveis\n");
-		return 2;
-	}
-
-	struct file_dir_entry *entrada = &root_dir.entries[i];
-
-	entrada->dir = 0;
-	memcpy(entrada->name, simul_file, strlen(simul_file));
-
-	entrada->size_bytes = size;
-	entrada->sector_start = root_dir.free_sectors_list;
 
 	root_dir.free_sectors_list = sector_pointer;
 	
@@ -183,7 +183,26 @@ int fs_ls(char *dir_path){
 		return ret;
 	}
 	
-	/* Write the code to show files or directories. */
+	struct root_table_directory root_dir;
+	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
+	int file_count = 0;
+	int total_size = 0;
+
+	struct file_dir_entry *entrada;
+	printf("┌────┬──────────────────────┬─────────┐\n");
+	printf("│Tipo│Nome                  │Tamanho  │\n");
+	printf("├────┼──────────────────────┼─────────┤\n");
+	for (int i = 0; i < 15; i++)
+		if (root_dir.entries[i].sector_start > 0) {
+			entrada = &root_dir.entries[i];
+			file_count++;
+			total_size += entrada->size_bytes;
+			printf("│ %c  │ %s%*s │ %4d kB │\n", (entrada->dir == 0 ? 'f' : 'd'), entrada->name, (int) (20 - strlen(entrada->name)), " ", entrada->size_bytes/1024);
+
+		}
+	printf("└────┴──────────────────────┴─────────┘\n");
+	printf("\nQuantidade: %d Tamanho total: %d kB\n", file_count, total_size/1024);
 	
 	ds_stop();
 	

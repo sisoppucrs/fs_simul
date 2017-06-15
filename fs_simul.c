@@ -23,13 +23,13 @@ int main(int argc, char **argv){
 		/* Disk formating. */
 		if( !strcmp(argv[1], "-format"))
 			fs_format();
-		//else if( !strcmp(argv[1], "-create"))
-			//fs_create(argv[3], argv[2]);
+		else if( !strcmp(argv[1], "-create"))
+			fs_create(argv[2], argv[3]);
+		else if( !strcmp(argv[1], "-ls"))
+			fs_ls(argv[2]);
 		
 	}
-	
-		if( !strcmp(argv[1], "-create"))
-			fs_create(argv[2], argv[3]);
+
 	/* Create a map of used/free disk sectors. */
 	fs_free_map("log.dat");
 	
