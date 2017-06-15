@@ -76,7 +76,7 @@ look:for (int i = 0; i < entries_length; i++) {
 			if (!strcmp(entrada->name, pch)) {
 				if (next_pch == NULL) {
 					if (new) {
-						printf("Arquivo '%s' já existe!\n", pch);
+						printf("Cannot create '%s': File exists\n", pch);
 						return 0;
 					} else
 						return entrada;
@@ -90,7 +90,7 @@ look:for (int i = 0; i < entries_length; i++) {
 						entries_length = 16;
 						goto look;
 					} else {
-						printf("'%s' não é um diretório!\n", pch);
+						printf("Cannot access '%s': No such file or directory\n", pch);
 						return 0;
 					}
 			}
@@ -98,21 +98,21 @@ look:for (int i = 0; i < entries_length; i++) {
 			if (new) {
 				if (next_pch == NULL) {
 					if(strlen(pch) > 20) {
-						printf("Arquivo '%s' muito grande!\n", pch);
+						printf("Cannot create '%s': File name too long\n", pch);
 						return 0;
 					}	
 					strcpy(entrada->name, pch);
 					return entrada;
 				} else {
-					printf("Pasta '%s' não encontrada!\n", pch);
+					printf("Cannot access '%s': No such file or directory\n", pch);
 					return 0;
 				}
 			}
 }
 	if (new)
-		printf("Não há mais entradas disponíveis!\n");
+		printf("Maximum number of files reached in this directory\n");
 	else
-		printf("Arquivo não encontrado!\n");
+		printf("No such file or directory\n");
 
 	return 0;
 }
@@ -171,7 +171,7 @@ int fs_create(char* input_file, char* simul_file){
 	fseek(fp, 0L, SEEK_END);
 	int size = ftell(fp);
 	if (size > NUMBER_OF_SECTORS * (SECTOR_SIZE - sizeof(int))) {
-		printf("Arquivo grande demais para o sistema de arquivos!\n");
+		printf("File too large!\n");
 		return 1;
 	}
 
@@ -189,7 +189,7 @@ int fs_create(char* input_file, char* simul_file){
 	}
 
 	if (size > free_space) {
-		printf("Não há espaço suficiente disponível para o arquivo!\n");
+		printf("Not enough free disk space.\n");
 		return 1;
 	}
 
@@ -352,7 +352,7 @@ int fs_ls(char *dir_path){
 	int total_size = 0;
 
 	printf("┌───┬──────────────────────┬─────────┐\n");
-	printf("│ T │ Nome                 │ Tamanho │\n");
+	printf("│ T │ Name                 │  Size   │\n");
 	printf("├───┼──────────────────────┼─────────┤\n");
 	for (int i = 0; i < size; i++)
 		if (entries[i].sector_start) {
@@ -363,7 +363,7 @@ int fs_ls(char *dir_path){
 
 		}
 	printf("└───┴──────────────────────┴─────────┘\n");
-	printf("\nQuantidade: %d Tamanho total: %d kB\n", file_count, total_size/1024);
+	printf("\nQuantity: %d Total size: %d kB\n", file_count, total_size/1024);
 	
 	ds_stop();
 	
