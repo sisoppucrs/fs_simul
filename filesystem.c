@@ -97,7 +97,9 @@ int fs_create(char* input_file, char* simul_file){
 	struct file_dir_entry *entrada = &root_dir.entries[i];
 
 	entrada->dir = 0;
-	memcpy(entrada->name, simul_file, strlen(simul_file));
+	memcpy(entrada->name, simul_file, (int) strlen(simul_file));
+	//printf("%s: %d\n", simul_file, (int) strlen(simul_file));
+	//return 0;
 
 	entrada->size_bytes = size;
 	entrada->sector_start = root_dir.free_sectors_list;
@@ -198,7 +200,7 @@ int fs_ls(char *dir_path){
 			entrada = &root_dir.entries[i];
 			file_count++;
 			total_size += entrada->size_bytes;
-			printf("│ %c  │ %s%*s │ %4d kB │\n", (entrada->dir == 0 ? 'f' : 'd'), entrada->name, (int) (20 - strlen(entrada->name)), " ", entrada->size_bytes/1024);
+			printf("│ %c  │ %.20s%*s│ %4d kB │\n", (entrada->dir == 0 ? 'f' : 'd'), entrada->name, (int) (strlen(entrada->name) >= 20 ? 0 : 21 - strlen(entrada->name)), " ", entrada->size_bytes/1024);
 
 		}
 	printf("└────┴──────────────────────┴─────────┘\n");
