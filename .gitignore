@@ -1,0 +1,4 @@
+*.sw*
+simul.fs
+simulfs
+log.dat

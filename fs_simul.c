@@ -21,20 +21,18 @@ int main(int argc, char **argv){
 	}else{
 	
 		/* Disk formating. */
-		if( !strcmp(argv[1], "-format")){
+		if( !strcmp(argv[1], "-format"))
 			fs_format();
-		}
+		//else if( !strcmp(argv[1], "-create"))
+			//fs_create(argv[3], argv[2]);
 		
 	}
 	
-	
-	/* Implement the other filesystem calls here!! */
-	
-	
-	
+		if( !strcmp(argv[1], "-create"))
+			fs_create(argv[3], argv[2]);
 	/* Create a map of used/free disk sectors. */
 	fs_free_map("log.dat");
 	
-	return 	0; 
+	return 0; 
 }
 	

@@ -56,8 +56,66 @@ int fs_create(char* input_file, char* simul_file){
 		return ret;
 	}
 
-	/* Write the code to load a new file to the simulated filesystem. */
+	printf("filename: %s\n", input_file);
+
+	FILE *fp = fopen(input_file, "r");
+
+	fseek(fp, 0L, SEEK_END);
+	int size = ftell(fp);
+	if (size < 0) {
+		printf("Arquivo grande demais para o sistema!\n");
+		return 1;
+	}
+
+	/* Seek to the beginning of the file */
+	fseek(fp, SEEK_SET, 0);
+
+	struct root_table_directory root_dir;
+	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
+	int sector_pointer = root_dir.free_sectors_list;
+	struct sector_data sector;
+
+	while (size > 0) {
+
+		int sector_size = (size > SECTOR_SIZE - sizeof(int) ? SECTOR_SIZE - sizeof(int) : size);
+		char buffer[sector_size];
+
+		fread(buffer, sector_size, 1, fp);
+
+		ds_read_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+
+		memcpy(&sector, buffer, sector_size);
+
+		ds_write_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+
+		sector_pointer = sector.next_sector;
+
+		size -= SECTOR_SIZE - sizeof(int);
+	}
+
+	int i;
+	for (i = 0; i < 15; i++)
+		if (root_dir.entries[i].sector_start == 0)
+			break;
+
+	if (i == 15) {
+		printf("Não há mais entradas disponíveis\n");
+		return 2;
+	}
+
+	struct file_dir_entry *entrada = &root_dir.entries[i];
+
+	entrada->dir = 0;
+	memcpy(entrada->name, simul_file, strlen(simul_file));
+
+	entrada->size_bytes = size;
+	entrada->sector_start = root_dir.free_sectors_list;
+
+	root_dir.free_sectors_list = sector_pointer;
 	
+	ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
 	ds_stop();
 	
 	return 0;
@@ -216,6 +274,7 @@ int fs_free_map(char *log_f){
 	pid = fork();
 	if(pid==0){
 		execvp("gnuplot", exec_params);
+		return 0;
 	}
 	
 	wait(&status);
