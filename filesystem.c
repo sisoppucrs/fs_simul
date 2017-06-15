@@ -192,18 +192,18 @@ int fs_ls(char *dir_path){
 	int total_size = 0;
 
 	struct file_dir_entry *entrada;
-	printf("┌────┬──────────────────────┬─────────┐\n");
-	printf("│Tipo│Nome                  │Tamanho  │\n");
-	printf("├────┼──────────────────────┼─────────┤\n");
+	printf("┌───┬──────────────────────┬─────────┐\n");
+	printf("│ T │ Nome                 │ Tamanho │\n");
+	printf("├───┼──────────────────────┼─────────┤\n");
 	for (int i = 0; i < 15; i++)
 		if (root_dir.entries[i].sector_start > 0) {
 			entrada = &root_dir.entries[i];
 			file_count++;
 			total_size += entrada->size_bytes;
-			printf("│ %c  │ %.20s%*s│ %4d kB │\n", (entrada->dir == 0 ? 'f' : 'd'), entrada->name, (int) (strlen(entrada->name) >= 20 ? 0 : 21 - strlen(entrada->name)), " ", entrada->size_bytes/1024);
+			printf("│ %c │ %.20s%*s│ %4d kB │\n", (entrada->dir == 0 ? 'f' : 'd'), entrada->name, (int) (strlen(entrada->name) >= 20 ? 0 : 21 - strlen(entrada->name)), " ", entrada->size_bytes/1024);
 
 		}
-	printf("└────┴──────────────────────┴─────────┘\n");
+	printf("└───┴──────────────────────┴─────────┘\n");
 	printf("\nQuantidade: %d Tamanho total: %d kB\n", file_count, total_size/1024);
 	
 	ds_stop();
