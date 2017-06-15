@@ -7,7 +7,7 @@ void usage(char *exec){
 	printf("%s -format\n", exec);
 	printf("%s -create <disk file> <simulated file>\n", exec);
 	printf("%s -read <disk file> <simulated file>\n", exec);
-    printf("%s -ls <absolute directory path>\n", exec);
+   	printf("%s -ls <absolute directory path>\n", exec);
 	printf("%s -del <simulated file>\n", exec);
 	printf("%s -mkdir <absolute directory path>\n", exec);
 	printf("%s -rmdir <absolute directory path>\n", exec);
@@ -27,6 +27,8 @@ int main(int argc, char **argv){
 			fs_create(argv[2], argv[3]);
 		else if( !strcmp(argv[1], "-ls"))
 			fs_ls(argv[2]);
+		else if ( !strcmp(argv[1], "-mkdir"))
+			fs_mkdir(argv[2]);
 		
 	}
 

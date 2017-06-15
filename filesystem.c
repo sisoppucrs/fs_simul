@@ -218,16 +218,55 @@ int fs_ls(char *dir_path){
  */
 int fs_mkdir(char* directory_path){
 	int ret;
+	
 	if ( (ret = ds_init(FILENAME, SECTOR_SIZE, NUMBER_OF_SECTORS, 0)) != 0 ){
 		return ret;
 	}
+
+	struct root_table_directory root_dir;
+	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
+	int sector_pointer = root_dir.free_sectors_list;
+
+	//PROCURANDO ENTRADAS DISPONIVEIS NO ROOT;
+	int i;
+	for (i = 0; i < 15; i++)
+		if (root_dir.entries[i].sector_start == 0)
+			break;
+
+	if (i == 15) {
+		printf("Não há mais entradas disponíveis\n");
+		return 2;
+	}
+
+	struct file_dir_entry *entrada = &root_dir.entries[i];
+
+	entrada->dir = 1;
+	memcpy(entrada->name, directory_path, (int) strlen(directory_path));
+
+	entrada->size_bytes = 0;
+	entrada->sector_start = root_dir.free_sectors_list;
+
+	sector_pointer = root_dir.free_sectors_list;
 	
-	/* Write the code to create a new directory. */
+	struct sector_data sector;
+
+	ds_read_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+
+	struct table_directory *buffer = malloc(sizeof (struct table_directory));
 	
+	root_dir.free_sectors_list = sector.next_sector;
+	
+	memcpy(&sector, buffer, SECTOR_SIZE);
+
+	ds_write_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
+	
+	ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
 	ds_stop();
 	
 	return 0;
-}
+}	
 
 /**
  * @brief Remove directory from the simulated filesystem.
