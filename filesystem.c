@@ -73,7 +73,7 @@ struct file_dir_entry* get_file_dir_entry(struct root_table_directory* root_dir,
 look:for (int i = 0; i < entries_length; i++) {
 		entrada = &entries[i];
 		if (entrada->sector_start) {
-			entrada->name[20] = '\0';
+			//entrada->name[20] = '\0';
 			if (!strcmp(entrada->name, pch)) {
 				if (next_pch == NULL) {
 					if (new) {
@@ -168,7 +168,7 @@ int fs_create(char* input_file, char* simul_file){
 
 	//print_sectors();
 
-	FILE *fp = fopen(input_file, "r");
+	FILE *fp = fopen(input_file, "rb");
 
 	fseek(fp, 0L, SEEK_END);
 	int size = ftell(fp);
@@ -215,7 +215,7 @@ int fs_create(char* input_file, char* simul_file){
 		char buffer[sector_size];
 
 		fseek(fp, SEEK_SET, position_inside_file);
-		fread(buffer, 1, sector_size, fp);
+		fread(buffer, sector_size, 1, fp);
 
 		ds_read_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
 
@@ -260,7 +260,7 @@ int fs_read(char* output_file, char* simul_file){
 		return 1;
 	}
 
-	FILE *fp = fopen(output_file, "w+");
+	FILE *fp = fopen(output_file, "wb+");
 
 	struct root_table_directory root_dir;
 	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
@@ -282,8 +282,8 @@ int fs_read(char* output_file, char* simul_file){
 	while(1) {
 		int sector_size = (size > SECTOR_SIZE - sizeof(int) ? SECTOR_SIZE - sizeof(int) : size);
 
-		ds_read_sector(sector_pointer, (void*) &sector, sector_size);
-		fwrite(sector.data, 1, sector_size, fp);
+		ds_read_sector(sector_pointer, (void*) &sector, SECTOR_SIZE);
+		fwrite(sector.data, sector_size, 1, fp);
 
 		size -= sector_size;
 
