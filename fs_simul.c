@@ -33,7 +33,10 @@ int main(int argc, char **argv){
 			fs_del(argv[2]);
 		else if ( !strcmp(argv[1], "-mkdir"))
 			fs_mkdir(argv[2]);
-
+		else if ( !strcmp(argv[1], "-rmdir"))
+			fs_rmdir(argv[2]);
+		else
+			usage(argv[0]);
 	}
 
 	/* Create a map of used/free disk sectors. */

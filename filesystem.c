@@ -277,7 +277,6 @@ int fs_read(char* output_file, char* simul_file){
 	int sector_pointer = entrada->sector_start;
 	struct sector_data sector;
 	int size = entrada->size_bytes;
-	int pos_init = 0;
 
 	while(1) {
 		int sector_size = (size > SECTOR_SIZE - sizeof(int) ? SECTOR_SIZE - sizeof(int) : size);
@@ -475,7 +474,16 @@ int fs_rmdir(char *directory_path){
 		return ret;
 	}
 
-	/* Write the code to delete a directory. */
+	struct root_table_directory root_dir;
+	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+	struct file_dir_entry *entries;
+
+	entries = root_dir.entries;
+
+	for (int i = 0; i < 16; ++i)
+	{
+
+	}
 
 	ds_stop();
 
