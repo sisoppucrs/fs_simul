@@ -41,7 +41,7 @@ void debug_sector(int pos) {
 			printf("├───┼──────────────────────┼─────────┼───────┤\n");
 		for (int i = 0; i < 15; i++) {
 			struct file_dir_entry *entrada = &root_dir.entries[i];
-			printf("│ %c │ %.20s%*s│ %4d kB │  %.4x │\n", (entrada->dir? 'd' : 'f'), entrada->name, (int) (21 - strlen(entrada->name)), " ", entrada->size_bytes/1024, entrada->sector_start);
+			printf("│ %c │ %.20s%*s│ %4d kB │  %d │\n", (entrada->dir? 'd' : 'f'), entrada->name, (int) (21 - strlen(entrada->name)), " ", entrada->size_bytes/1024, entrada->sector_start);
 
 		}
 			printf("└───┴──────────────────────┴─────────┴───────┘\n");
@@ -57,8 +57,7 @@ void debug_sector(int pos) {
 		}
 	}
 
-}
-*/
+}*/
 
 struct file_dir_entry* get_file_dir_entry(struct root_table_directory* root_dir, char* path, int new, struct table_directory* td, int* sector_pointer) {
 	*sector_pointer = 0;
@@ -72,7 +71,7 @@ struct file_dir_entry* get_file_dir_entry(struct root_table_directory* root_dir,
 
 look:for (int i = 0; i < entries_length; i++) {
 		entrada = &entries[i];
-		if (entrada->sector_start) {
+		if (entrada->sector_start > 0) {
 			//entrada->name[20] = '\0';
 			if (!strcmp(entrada->name, pch)) {
 				if (next_pch == NULL) {
@@ -320,8 +319,16 @@ int fs_del(char* simul_file){
 	struct table_directory td;
 	int td_sector;
 	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, simul_file, 0, &td, &td_sector);
-	if (!entrada)
+
+	if (!entrada) {
+		printf("File %s not found\n", entrada->name);
 		return 1;
+	}
+
+	if (entrada->dir == 1) {
+		printf("%s is dir. Use -rmdir <dir>\n", entrada->name);
+		return 1;
+	}
 
 	int sector_pointer = entrada->sector_start;
 	int first_pointer = sector_pointer;
@@ -396,7 +403,7 @@ int fs_ls(char *dir_path){
 	printf("│ T │ Name                 │  Size   │\n");
 	printf("├───┼──────────────────────┼─────────┤\n");
 	for (int i = 0; i < size; i++)
-		if (entries[i].sector_start) {
+		if (entries[i].sector_start > 0) {
 			entrada = &entries[i];
 			file_count++;
 			total_size += entrada->size_bytes;
@@ -468,7 +475,8 @@ int fs_mkdir(char* directory_path){
  * @param directory_path directory path.
  * @return 0 on success.
  */
-int fs_rmdir(char *directory_path){
+int fs_rmdir(char *directory_path)
+{
 	int ret;
 	if ( (ret = ds_init(FILENAME, SECTOR_SIZE, NUMBER_OF_SECTORS, 0)) != 0 ){
 		return ret;
@@ -476,14 +484,26 @@ int fs_rmdir(char *directory_path){
 
 	struct root_table_directory root_dir;
 	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
-	struct file_dir_entry *entries;
 
-	entries = root_dir.entries;
+	struct table_directory td;
+	int td_sector;
+	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, directory_path, 0, &td, &td_sector);
 
-	for (int i = 0; i < 16; ++i)
-	{
-
+	if (!entrada) {
+		printf("'%s' not found\n", entrada->name);
+		return 1;
 	}
+
+	if (entrada->dir == 0) {
+		printf("'%s' is file. Use -del <file>\n", entrada->name);
+		return 1;
+	}
+
+	entrada->sector_start = 0;
+	strcpy(entrada->name, "");
+
+	if (td_sector)
+		ds_write_sector(td_sector, (void*)&td, SECTOR_SIZE);
 
 	ds_stop();
 

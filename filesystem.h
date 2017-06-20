@@ -6,7 +6,7 @@
 /* Filesystem structures. */
 
 /**
- * File or directory entry. 
+ * File or directory entry.
  */
 struct file_dir_entry{
 	unsigned int dir; 		/**< File or directory representation. Use 1 for directory 0 for file. */
@@ -22,7 +22,7 @@ struct file_dir_entry{
 struct root_table_directory{
 	unsigned int free_sectors_list;		/**< First free sector. */
 	struct file_dir_entry entries[15];	/**< List of file or directories. */
-	unsigned char not_used[28];		/**< Reserved, not used. */	
+	unsigned char not_used[28];		/**< Reserved, not used. */
 };
 
 /**
