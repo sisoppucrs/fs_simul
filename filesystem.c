@@ -15,6 +15,7 @@ struct file_dir_entry* get_file_dir_entry(struct root_table_directory* root_dir,
 	*sector_pointer = 0;
 	if (!strlen(path) || !strcmp(path, "/"))
 		return 0;
+
 	struct file_dir_entry *entrada;
 	struct file_dir_entry *entries = root_dir->entries;
 	int entries_length = 15;
@@ -69,7 +70,7 @@ look:for (int i = 0; i < entries_length; i++) {
 	else
 		printf("No such file or directory\n");
 
-	return NULL;
+	return 0;
 }
 
 int fs_format(){
@@ -254,19 +255,8 @@ int fs_read(char* output_file, char* simul_file){
 	return 0;
 }
 
-/**
- * @brief Delete file from file system.
- * @param simul_file Source file path.
- * @return 0 on success.
- */
-int fs_del(char* simul_file){
-	int ret;
-	if ( (ret = ds_init(FILENAME, SECTOR_SIZE, NUMBER_OF_SECTORS, 0)) != 0 ){
-		return ret;
-	}
-
-	//print_sectors();
-
+int aux_del(char* simul_file)
+{
 	struct root_table_directory root_dir;
 	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
@@ -275,7 +265,7 @@ int fs_del(char* simul_file){
 	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, simul_file, 0, &td, &td_sector);
 
 	if (!entrada) {
-		printf("File %s not found\n", entrada->name);
+		printf("File %s not found\n", simul_file);
 		return 1;
 	}
 
@@ -313,9 +303,25 @@ int fs_del(char* simul_file){
 	if (td_sector)
 		ds_write_sector(td_sector, (void*)&td, SECTOR_SIZE);
 
+	return 0;
+}
+
+/**
+ * @brief Delete file from file system.
+ * @param simul_file Source file path.
+ * @return 0 on success.
+ */
+int fs_del(char* simul_file){
+	int ret;
+	if ( (ret = ds_init(FILENAME, SECTOR_SIZE, NUMBER_OF_SECTORS, 0)) != 0 ){
+		return ret;
+	}
+
+	int retrn = aux_del(simul_file);
+
 	ds_stop();
 
-	return 0;
+	return retrn;
 }
 
 /**
@@ -427,6 +433,55 @@ int fs_mkdir(char* directory_path){
 	return 0;
 }
 
+
+int aux_rmdir(char *directory_path)
+{
+	struct root_table_directory root_dir;
+	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
+	int td_sector;
+	struct table_directory td;
+	struct file_dir_entry *entries, *file_entry;
+	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, directory_path, 0, &td, &td_sector);
+
+	if (!entrada) {
+		printf("'%s' not found\n", directory_path);
+		return 1;
+	}
+
+	if (entrada->dir == 0) {
+		printf("'%s' is file. Use -del <file>\n", entrada->name);
+		return 1;
+	}
+
+	ds_read_sector(entrada->sector_start, (void*) &td, SECTOR_SIZE);
+	entries = td.entries;
+
+    char filename[50];
+
+	for (int i = 0; i < 16; i++) {
+		if (entries[i].sector_start > 0) {
+			file_entry = &entries[i];
+			sprintf(filename, "%s/%s", directory_path, file_entry->name);
+
+			if (file_entry->dir == 1) {
+				aux_rmdir(filename);
+			}
+			else {
+				aux_del(filename);
+			}
+		}
+	}
+
+	entrada->sector_start = 0;
+	strcpy(entrada->name, "");
+
+	if (td_sector)
+		ds_write_sector(td_sector, (void*)&td, SECTOR_SIZE);
+
+	return 0;
+}
+
 /**
  * @brief Remove directory from the simulated filesystem.
  * @param directory_path directory path.
@@ -439,32 +494,11 @@ int fs_rmdir(char *directory_path)
 		return ret;
 	}
 
-	struct root_table_directory root_dir;
-	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
-
-	struct table_directory td;
-	int td_sector;
-	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, directory_path, 0, &td, &td_sector);
-
-	if (!entrada) {
-		printf("'%s' not found\n", entrada->name);
-		return 1;
-	}
-
-	if (entrada->dir == 0) {
-		printf("'%s' is file. Use -del <file>\n", entrada->name);
-		return 1;
-	}
-
-	entrada->sector_start = 0;
-	strcpy(entrada->name, "");
-
-	if (td_sector)
-		ds_write_sector(td_sector, (void*)&td, SECTOR_SIZE);
+	int rtn = aux_rmdir(directory_path);
 
 	ds_stop();
 
-	return 0;
+	return rtn;
 }
 
 /**
