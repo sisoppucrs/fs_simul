@@ -284,11 +284,6 @@ int fs_del(char* simul_file){
 		return 1;
 	}
 
-	if (entrada->dir) {
-		printf("File cannot be a directory\n");
-		return 1;
-	}
-
 	int sector_pointer = entrada->sector_start;
 	int first_pointer = sector_pointer;
 	struct sector_data sector;
