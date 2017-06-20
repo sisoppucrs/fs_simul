@@ -11,55 +11,6 @@
  *
  */
 
-/*
-int print_sectors() {
-	struct root_table_directory root_dir;
-	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
-	struct sector_data sector;
-	int sector_pointer = root_dir.free_sectors_list;
-	printf("0");
-	while(sector_pointer) {
-		printf(" -> %d", sector_pointer);
-		ds_read_sector(sector_pointer, (void*)&sector, SECTOR_SIZE);
-		sector_pointer = sector.next_sector;
-		//if (sector_pointer > 10)
-			//break;
-	}
-	printf("\n");
-	return 0;
-
-}
-
-void debug_sector(int pos) {
-	if (!pos) {
-		struct root_table_directory root_dir;
-		ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
-		printf("free_sectors_list: %d\n", root_dir.free_sectors_list);
-		printf("entries:\n");
-			printf("┌───┬──────────────────────┬─────────┬───────┐\n");
-			printf("│ T │ Nome                 │ Tamanho │ Setor │\n");
-			printf("├───┼──────────────────────┼─────────┼───────┤\n");
-		for (int i = 0; i < 15; i++) {
-			struct file_dir_entry *entrada = &root_dir.entries[i];
-			printf("│ %c │ %.20s%*s│ %4d kB │  %d │\n", (entrada->dir? 'd' : 'f'), entrada->name, (int) (21 - strlen(entrada->name)), " ", entrada->size_bytes/1024, entrada->sector_start);
-
-		}
-			printf("└───┴──────────────────────┴─────────┴───────┘\n");
-		printf("\n");
-
-	} else {
-		unsigned char buffer[16][SECTOR_SIZE/16];
-		ds_read_sector(pos, (void*)&buffer, SECTOR_SIZE);
-		for (int j = 0; j < 16; j++) {
-			for (int i = 0; i < SECTOR_SIZE/16; i++)
-	   			printf("%.2x ", buffer[j][i]);
-			printf("\n");
-		}
-	}
-
-}*/
-
-
 struct file_dir_entry* get_file_dir_entry(struct root_table_directory* root_dir, char* path, int new, struct table_directory* td, int* sector_pointer) {
 	*sector_pointer = 0;
 	if (!strlen(path) || !strcmp(path, "/"))
