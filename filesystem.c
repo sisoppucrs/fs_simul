@@ -19,7 +19,9 @@ struct file_dir_entry* get_file_dir_entry(struct root_table_directory* root_dir,
 	struct file_dir_entry *entrada;
 	struct file_dir_entry *entries = root_dir->entries;
 	int entries_length = 15;
-	char *pch = strtok(path, "/");
+	char *path2 = malloc(strlen(path) + 1);
+	strcpy(path2, path);
+	char *pch = strtok(path2, "/");
 	char *next_pch = strtok(NULL, "/");
 
 look:for (int i = 0; i < entries_length; i++) {
@@ -223,10 +225,8 @@ int fs_read(char* output_file, char* simul_file){
 	int td_sector;
 	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, simul_file, 0, &td, &td_sector);
 
-	if (!entrada) {
-		printf("Simulated file %s not found\n", simul_file);
+	if (!entrada)
 		return 1;
-	}
 
 	int sector_pointer = entrada->sector_start;
 	struct sector_data sector;
@@ -257,11 +257,13 @@ int fs_read(char* output_file, char* simul_file){
 
 int aux_del(char* simul_file)
 {
-	struct root_table_directory root_dir;
-	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
 	struct table_directory td;
 	int td_sector;
+
+	struct root_table_directory root_dir;
+	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
 	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, simul_file, 0, &td, &td_sector);
 
 	if (!entrada) {
@@ -436,18 +438,18 @@ int fs_mkdir(char* directory_path){
 
 int aux_rmdir(char *directory_path)
 {
-	struct root_table_directory root_dir;
-	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
 	int td_sector;
 	struct table_directory td;
+
+	struct root_table_directory root_dir;
+	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
 	struct file_dir_entry *entries, *file_entry;
 	struct file_dir_entry *entrada = get_file_dir_entry(&root_dir, directory_path, 0, &td, &td_sector);
 
-	if (!entrada) {
-		printf("'%s' not found\n", directory_path);
+	if (!entrada)
 		return 1;
-	}
 
 	if (entrada->dir == 0) {
 		printf("'%s' is file. Use -del <file>\n", entrada->name);
@@ -459,22 +461,31 @@ int aux_rmdir(char *directory_path)
 
     char filename[50];
 
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < 16; i++)
 		if (entries[i].sector_start > 0) {
 			file_entry = &entries[i];
 			sprintf(filename, "%s/%s", directory_path, file_entry->name);
 
-			if (file_entry->dir == 1) {
+			if (file_entry->dir == 1)
 				aux_rmdir(filename);
-			}
-			else {
+			else
 				aux_del(filename);
-			}
 		}
-	}
+
+	ds_read_sector(0, (void*)&root_dir, SECTOR_SIZE);
+
+	entrada = get_file_dir_entry(&root_dir, directory_path, 0, &td, &td_sector);
+
+	struct sector_data sector;
+	ds_read_sector(entrada->sector_start, (void*)&sector, SECTOR_SIZE);
+	sector.next_sector = root_dir.free_sectors_list;
+	ds_write_sector(entrada->sector_start, (void*)&sector, SECTOR_SIZE);
+	root_dir.free_sectors_list = entrada->sector_start;
 
 	entrada->sector_start = 0;
 	strcpy(entrada->name, "");
+
+	ds_write_sector(0, (void*)&root_dir, SECTOR_SIZE);
 
 	if (td_sector)
 		ds_write_sector(td_sector, (void*)&td, SECTOR_SIZE);
