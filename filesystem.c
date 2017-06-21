@@ -460,7 +460,7 @@ int aux_rmdir(char *directory_path)
 	entries = td.entries;
 
 	int lendp = strlen(directory_path);
-    char filename[lendp + 20];
+    char filename[lendp + 21];
 
 	for (int i = 0; i < 16; i++)
 		if (entries[i].sector_start > 0) {
