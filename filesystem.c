@@ -459,7 +459,8 @@ int aux_rmdir(char *directory_path)
 	ds_read_sector(entrada->sector_start, (void*) &td, SECTOR_SIZE);
 	entries = td.entries;
 
-    char filename[50];
+	int lendp = strlen(directory_path);
+    char filename[lendp + 20];
 
 	for (int i = 0; i < 16; i++)
 		if (entries[i].sector_start > 0) {
